@@ -1,0 +1,41 @@
+以下两个获取图片缩略图方案，目的应对加载多图列表时候防止内存爆炸。以及卡顿。
+
+https://juejin.cn/post/7062956785153343518
+//pointSize 图片尺寸（点)
+func getImageFromData(imageAt imageData: NSData, to pointSize: CGSize, scale: CGFloat) -> UIImage
+    {
+        let sourceOpt = [kCGImageSourceShouldCache : false] as CFDictionary
+        //(data并未decode,所占内存没那么大),
+        let source = CGImageSourceCreateWithData(imageData as CFData, sourceOpt)!
+        let maxDimension = max(pointSize.width, pointSize.height) * scale //像素大小
+        let downsampleOpt = [kCGImageSourceCreateThumbnailFromImageAlways : true,
+                             kCGImageSourceShouldCacheImmediately : true,
+                             kCGImageSourceCreateThumbnailWithTransform : true,
+                             kCGImageSourceThumbnailMaxPixelSize : maxDimension] as CFDictionary
+        let downsampleImage = CGImageSourceCreateThumbnailAtIndex(source, 0, downsampleOpt)!
+        return UIImage(cgImage: downsampleImage)
+    }
+
+方案2:
+iOS13+ 使用QLThumbnailGenerator 来生成缩略图，这个类不仅可以用来生成图片的，也可以生成其他的文件。
+
+    // 生成图片缩略图的方法
+    func generateThumbnail(from imageURL: URL, size: CGSize = CGSize(width: 100, height: 100), completion: @escaping (UIImage?) -> Void) {
+        
+        // 创建一个 QLThumbnailGenerator 实例
+        let generator = QLThumbnailGenerator.shared
+        
+        // 配置 QLThumbnailGenerationRequest
+        let request = QLThumbnailGenerator.Request(fileAt: imageURL, size: size, scale: UIScreen.main.scale, representationTypes: .thumbnail)
+        
+        // 使用生成器请求缩略图
+        generator.generateBestRepresentation(for: request) { thumbnail, error in
+            if let error = error {
+                print("生成缩略图失败: \(error.localizedDescription)")
+                completion(nil)
+            } else {
+                // 返回生成的缩略图
+                completion(thumbnail?.uiImage)
+            }
+        }
+    }
